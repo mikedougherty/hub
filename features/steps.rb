@@ -133,17 +133,34 @@ Then /^the file "([^"]*)" should have mode "([^"]*)"$/ do |file, expected_mode|
 end
 
 Given /^the local commit state of "(.*?)" is "(.*?)"$/ do |ref, state|
-  pending
+  if ref == 'HEAD'
+    empty_commit
+  end
+  rev = run_silent %(git rev-parse -q #{ref})
+  run_silent %(git notes append #{rev} -m \"state: #{state}\")
 end
 
 Given /^the local commit state of "(.*?)" is nil$/ do |ref|
-  pending
+  if ref == 'HEAD'
+    empty_commit
+  end
+  rev = run_silent %(git rev-parse #{ref})
+  run_silent %(git notes append -m \"nothing\" #{rev})
+  run_silent %(git notes remove #{rev})
 end
 
 Given /^the remote commit state of "(.*?)" "(.*?)" is "(.*?)"$/ do |proj, ref, state|
-  pending
+  rev = run_silent %(git rev-parse #{ref})
+  steps %Q(
+    When the GitHub API server:
+      """
+      get("/repos/#{proj}/statuses/#{rev}") {
+        json [ {'state' => "#{state}"} ]
+      }
+      """
+  )
 end
 
 Then /^the local commit state of "(.*?)" should be "(.*?)"$/ do |ref, state|
-  pending
+  state.should eql(run_silent %(hub commit-status #{ref}))
 end
