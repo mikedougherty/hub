@@ -131,3 +131,19 @@ Then /^the file "([^"]*)" should have mode "([^"]*)"$/ do |file, expected_mode|
     mode.to_s(8).should =~ /#{expected_mode}$/
   end
 end
+
+Given /^the local commit state of "(.*?)" is "(.*?)"$/ do |ref, state|
+  pending
+end
+
+Given /^the local commit state of "(.*?)" is nil$/ do |ref|
+  pending
+end
+
+Given /^the remote commit state of "(.*?)" "(.*?)" is "(.*?)"$/ do |proj, ref, state|
+  pending
+end
+
+Then /^the local commit state of "(.*?)" should be "(.*?)"$/ do |ref, state|
+  pending
+end
