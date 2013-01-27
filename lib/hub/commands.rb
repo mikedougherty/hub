@@ -38,7 +38,7 @@ module Hub
     OWNER_RE = /[a-zA-Z0-9-]+/
     NAME_WITH_OWNER_RE = /^(?:#{NAME_RE}|#{OWNER_RE}\/#{NAME_RE})$/
 
-    CUSTOM_COMMANDS = %w[alias create browse compare fork pull-request]
+    CUSTOM_COMMANDS = %w[alias create browse compare fork pull-request commit-status]
 
     def run(args)
       slurp_global_flags(args)
@@ -637,6 +637,85 @@ module Hub
       end
     end
 
+    # $ hub commit-status --fetch
+    # "success"
+    #
+    # $ hub commit-status
+    # "success"
+    #
+    # $ hub commit-status HEAD~1
+    # > exit code is 1
+    #
+    # $ hub commit-status --fetch HEAD~1
+    # "failure"
+    #
+    # $ hub commit-status master success
+    # "success"
+    #
+    # $ hub commit-status master
+    # "success"
+
+    def commit_status(args)
+      args.shift
+      positional = []
+      fetch = false
+      while arg = args.shift
+        case arg
+        when '--fetch'
+          fetch = true
+        else
+          if arg.index('-') == 0
+            # XXX: can refs start with '-'?
+            #      should we allow a status that starts with '-' (perhaps for non-github projects)?
+            abort "Usage: hub commit-status [--fetch] [<REF> [<STATE>]]"
+          end
+          positional << arg
+        end
+      end
+
+      # Can't fetch from non-github project
+      if fetch and not local_repo.current_project
+        abort "Aborted: the origin remote doesn't point to a GitHub repository."
+      end
+
+      ref = 'HEAD'
+      unless positional.empty?
+        ref = positional.shift
+      end
+
+      state = nil
+      unless positional.empty?
+        state = positional.shift
+      end
+
+      rev = local_repo.git_command("rev-parse #{ref}")
+      unless (notes = local_repo.git_command("notes show #{rev}"))
+        notes = ''
+      end
+
+      notes_ref = local_repo.git_command('notes get-ref')
+
+      if fetch
+        statuses = api_client.get_commitstatus({
+          :project => local_repo.current_project,
+          :revision => rev
+        })
+        state = (last_status = statuses.first) ? last_status["state"] : nil
+      end
+
+      last_state = (match = notes.scan(/^state: (.*)$/).last) ? match.first : nil
+      if state and state != last_state
+        # Save the updated state
+        local_repo.git_command("notes append -m 'state: #{state}' #{rev}")
+      else
+        state = last_state
+      end
+
+      exit(1) unless state
+      puts state
+      exit
+    end
+
     # $ hub hub standalone
     # Prints the "standalone" version of hub for an easy, memorable
     # installation sequence:
@@ -809,6 +888,7 @@ GitHub Commands:
    create         Create this repository on GitHub and add GitHub as origin
    browse         Open a GitHub page in the default browser
    compare        Open a compare page on GitHub
+   commit-status  Show the CI status of a commit
 
 See 'git help <command>' for more information on a specific command.
 help
