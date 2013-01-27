@@ -441,7 +441,7 @@ module Hub
 
     module System
       # Cross-platform web browser command; respects the value set in $BROWSER.
-      # 
+      #
       # Returns an array, e.g.: ['open']
       def browser_launcher
         browser = ENV['BROWSER'] || (
